@@ -141,26 +141,25 @@ export function createDropZoneHTML(trackId, inputId, trackTypeHintForLoad, padOr
     let relinkButtonHTML = '';
     let statusClass = '';
     const fileName = existingAudioData?.originalFileName || 'Unknown File';
-    const truncatedFileName = fileName.substring(0, 25) + (fileName.length > 25 ? '...' : '');
 
     if (existingAudioData) {
         switch (existingAudioData.status) {
             case 'loaded':
-                currentFileText = `Loaded: ${truncatedFileName}<br>`;
+                currentFileText = `Loaded: ${fileName}<br>`;
                 break;
             case 'missing':
             case 'missing_db':
-                currentFileText = `Missing: ${truncatedFileName}<br>`;
+                currentFileText = `Missing: ${fileName}<br>`;
                 statusClass = 'drop-zone-missing';
                 relinkButtonHTML = `<button class="drop-zone-relink-button">Relink</button>`; // CSS will style this
                 break;
             case 'error':
-                currentFileText = `Error Loading: ${truncatedFileName}<br>`;
+                currentFileText = `Error Loading: ${fileName}<br>`;
                 statusClass = 'drop-zone-error';
                 relinkButtonHTML = `<button class="drop-zone-relink-button">Retry</button>`;
                 break;
             case 'loading':
-                currentFileText = `Loading: ${truncatedFileName}...<br>`;
+                currentFileText = `Loading: ${fileName}...<br>`;
                 statusClass = 'drop-zone-loading';
                 break;
             default: // 'empty' or unknown
