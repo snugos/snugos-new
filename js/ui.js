@@ -1505,12 +1505,88 @@ export function renderSamplePads(track) {
     if (!padsContainer) return;
     padsContainer.innerHTML = '';
     track.slices.forEach((slice, index) => {
+        // Create a container for the pad with drop zone functionality
+        const padContainer = document.createElement('div');
+        padContainer.className = 'relative';
+        
         const pad = document.createElement('button');
-        pad.className = `sample-pad p-2 border rounded text-xs h-12 flex items-center justify-center dark:border-slate-500 dark:text-slate-300 ${track.selectedSliceForEdit === index ? 'bg-blue-200 border-blue-400 dark:bg-blue-700 dark:border-blue-500' : 'bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500'} ${(!track.audioBuffer?.loaded || slice.duration <= 0) ? 'opacity-50' : ''}`;
-        pad.textContent = `S${index + 1}`; pad.title = `Slice ${index + 1}`;
-        if (!track.audioBuffer?.loaded || slice.duration <= 0) pad.disabled = true;
+        const hasSlice = track.audioBuffer?.loaded && slice.duration > 0;
+        pad.className = `sample-pad w-full p-2 border rounded text-xs h-12 flex items-center justify-center dark:border-slate-500 dark:text-slate-300 ${track.selectedSliceForEdit === index ? 'bg-blue-200 border-blue-400 dark:bg-blue-700 dark:border-blue-500' : 'bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500'} ${!hasSlice ? 'opacity-50' : ''}`;
+        pad.textContent = `S${index + 1}`; 
+        pad.title = hasSlice ? `Slice ${index + 1}\nStart: ${slice.startTime?.toFixed(2)}s\nEnd: ${slice.endTime?.toFixed(2)}s` : `Slice ${index + 1} (empty)`;
+        
+        if (!hasSlice) pad.disabled = true;
         pad.addEventListener('click', () => { track.selectedSliceForEdit = index; if (localAppServices.playSlicePreview) localAppServices.playSlicePreview(track.id, index); renderSamplePads(track); updateSliceEditorUI(track); });
-        padsContainer.appendChild(pad);
+        
+        padContainer.appendChild(pad);
+        
+        // Add drop zone overlay for each pad
+        const dropOverlay = document.createElement('div');
+        dropOverlay.className = 'absolute inset-0 opacity-0 hover:opacity-50 bg-blue-300 dark:bg-blue-600 rounded cursor-pointer flex items-center justify-center text-xs font-bold';
+        dropOverlay.textContent = 'Drop';
+        dropOverlay.title = 'Drop audio file to load sample';
+        
+        // Create hidden file input for each pad
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'audio/*';
+        fileInput.className = 'hidden';
+        fileInput.id = `sliceFileInput-${track.id}-${index}`;
+        
+        // Handle file selection
+        fileInput.addEventListener('change', async (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                const file = e.target.files[0];
+                // Load the sample - this will replace the entire sample and re-slice
+                if (localAppServices.loadSampleFile) {
+                    await localAppServices.loadSampleFile(file, track.id, 'Sampler');
+                }
+            }
+        });
+        
+        // Handle drag and drop
+        dropOverlay.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropOverlay.classList.remove('opacity-0');
+            dropOverlay.classList.add('opacity-70', 'bg-blue-400', 'dark:bg-blue-500');
+        });
+        
+        dropOverlay.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropOverlay.classList.remove('opacity-70', 'bg-blue-400', 'dark:bg-blue-500');
+            dropOverlay.classList.add('opacity-50');
+        });
+        
+        dropOverlay.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropOverlay.classList.remove('opacity-70', 'bg-blue-400', 'dark:bg-blue-500');
+            
+            const files = e.dataTransfer?.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('audio/') || file.name.match(/\.(wav|mp3|ogg|flac|m4a|aac|webm)$/i)) {
+                    if (localAppServices.loadSampleFile) {
+                        await localAppServices.loadSampleFile(file, track.id, 'Sampler');
+                    }
+                } else {
+                    if (localAppServices.showNotification) {
+                        localAppServices.showNotification('Please drop an audio file', 2000);
+                    }
+                }
+            }
+        });
+        
+        // Click on overlay to trigger file input
+        dropOverlay.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        padContainer.appendChild(dropOverlay);
+        padContainer.appendChild(fileInput);
+        padsContainer.appendChild(padContainer);
     });
 }
 
